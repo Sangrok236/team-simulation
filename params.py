@@ -9,6 +9,7 @@ from config import Config, CT, MRI, HOURS, by_hours
 
 MAX_FINAL, MAX_PRELIM = 8, 4
 READER_OPTIONS = ["off", "CT", "MRI", "CT+MRI"]
+WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
 
 GROUPS = [
     ("demand", "수요", "검사 요청이 얼마나 들어오는지. 총량은 아래 '전체 수요 배율'과 응급 비율로, 시간대별 모양은 '24시간 편집기 → 수요' 탭에서 정한다. 도착은 포아송(무작위) 과정이고, 같은 시드면 같은 요청이 같은 시각에 들어온다."),
@@ -81,6 +82,12 @@ PARAMS = [
        help="CT 요청 중 응급인 비율. 응급은 대기열에서 일반보다 먼저 처리되고, 최종판독 전에 가판독 단계를 거친다."),
     _p("mri_urgent", "MRI 응급 비율", "demand", 10, "%", 0, 100, 1,
        help="MRI 요청 중 응급인 비율. 응급은 촬영 대기열 우선 + 가판독 경로를 탄다."),
+    _p("ct_daily_var", "CT 일별 변동 (±)", "demand", 0.0, "건/시간", 0, 10, 0.1,
+       help="0이면 매일 같은 수요. 1로 두면 매일 그날의 CT 도착률이 설정값(24시간 편집기 값)에서 -1 ~ +1 건/시간 사이 임의의 값만큼 달라진다(하루 동안은 모든 시간대에 같은 값, 0 아래로는 내려가지 않음). 날마다 다른 값이 뽑히고, 같은 시드면 같은 날엔 같은 값이다."),
+    _p("mri_daily_var", "MRI 일별 변동 (±)", "demand", 0.0, "건/시간", 0, 5, 0.1,
+       help="MRI 도착률의 일별 변동. 0이면 변동 없음. MRI는 도착률 자체가 작으므로(기준 야간 0.3건/시간) 0.1~0.3 정도부터 써 보는 것을 권한다."),
+    _p("start_weekday", "시작 요일", "demand", "월", type="choice", options=WEEKDAYS,
+       help="시뮬레이션 첫날의 요일. 요일별 배수가 어느 날에 적용되는지 정한다. 준비 구간도 날짜에 포함되므로, 집계 구간이 무슨 요일에 시작하는지는 시작 요일 + 준비 일수로 정해진다."),
     # 촬영 자원
     _p("ct_units", "CT 장비 수", "scan", 2, "대", 1, 8, 1,
        help="CT 장비 대수. 실제 동시 촬영 수 = min(장비 수, 그 시각의 CT 슬롯). 장비만 늘리고 슬롯을 그대로 두면 효과가 없을 수 있다."),
@@ -108,6 +115,12 @@ PARAMS = [
        help="최종판독(모든 요청의 마지막 단계)을 맡는 자리들. 시작값은 1자리(24시간 CT+MRI). 자리를 추가·삭제하고, 칸마다 그 시각에 읽는 검사 종류를 칠한다: off=근무 안 함, CT / MRI / CT+MRI. '붓'과 같은 값인 칸을 다시 클릭하면 off 가 된다. 시각이 바뀌어도 읽던 건은 끝까지 읽고, 근무가 끝난 뒤 이어서 일하면 초과근무로 집계된다."),
 ]
 
+# 요일별 수요 배수 (한 줄짜리 표로 보인다)
+for _i, _d in enumerate(WEEKDAYS):
+    PARAMS.append(_p("wd_mult_%d" % _i, "%s요일 수요 배수" % _d, "demand", 1.0, "×", 0, 5, 0.05, grid=("요일 배수", _d),
+                     help="%s요일의 모든 시간대 도착률에 곱한다. 1 = 그대로, 1.3 = 30%% 증가, 0.6 = 40%% 감소. 일별 변동을 쓰면 (설정값 ± 변동) 에 이 배수가 곱해진다." % _d))
+    PARAMS[-1]["rowhelp"] = "요일마다 수요 크기를 다르게 한다. 주말·휴일에 검사가 줄거나 월요일에 몰리는 식의 가정을 넣을 때 쓴다. 실제 병원 자료 없이 임의로 정한 값은 가정값임을 발표에 밝혀야 한다."
+
 # 처리시간 (삼각분포)
 _TIMES = [
     ("ct_scan", "CT 촬영(장비 점유)", (10, 15, 20), "CT 한 건을 찍는 동안 장비 한 자리를 차지하는 시간."),
@@ -126,11 +139,11 @@ for key, label, (lo, mode, hi), hlp in _TIMES:
         PARAMS[-1]["rowhelp"] = hlp + " 삼각분포라 평균은 (최소+최빈+최대)÷3 이다."
 # 평가
 PARAMS += [
-    _p("warmup_days", "준비 구간 (집계 제외)", "eval", 7, "일", 0, 30, 1,
+    _p("warmup_days", "준비 구간 (집계 제외)", "eval", 7, "일", 0, 90, 1,
        help="병원이 빈 상태로 시작하는 영향을 없애기 위해 처음 며칠은 집계에서 뺀다. t=0 은 첫날 08:00."),
-    _p("measure_days", "집계 구간", "eval", 7, "일", 1, 28, 1,
+    _p("measure_days", "집계 구간", "eval", 7, "일", 1, 365, 1,
        help="준비 구간 다음, 지표를 모으는 기간. 길수록 결과가 안정적이지만 이 모델에선 시드 수를 늘리는 쪽이 더 효과적이다."),
-    _p("followup_days", "후속 관찰", "eval", 2, "일", 0, 7, 1,
+    _p("followup_days", "후속 관찰", "eval", 2, "일", 0, 30, 1,
        help="집계 구간이 끝난 뒤에도 요청은 계속 들어오고, 집계 구간에 접수된 건이 끝까지 처리되는지 지켜보는 기간."),
 ]
 
@@ -198,6 +211,11 @@ def apply_params(values):
         MRI: {h: r * m for h, r in hr["mri_rate"].items()},
     }
     cfg.demand.urgent_ratio = {CT: n["ct_urgent"] / 100.0, MRI: n["mri_urgent"] / 100.0}
+    cfg.demand.daily_var = {CT: n["ct_daily_var"] * m, MRI: n["mri_daily_var"] * m}   # 배율을 곱한 도착률 기준
+    cfg.demand.weekday_mult = [n["wd_mult_%d" % i] for i in range(7)]
+    if v["start_weekday"] not in WEEKDAYS:
+        raise ValueError("시작 요일: 알 수 없는 값 %r" % (v["start_weekday"],))
+    cfg.demand.start_weekday = WEEKDAYS.index(v["start_weekday"])
 
     s = cfg.scan
     s.ct_units, s.mri_units = int(n["ct_units"]), int(n["mri_units"])
@@ -284,6 +302,12 @@ PRESETS = [
     {"id": "h3_late_reader", "name": "H3 판독 3 근무를 11~23시로 늦춤 (총 근무시간 유지)",
      "desc": "판독 3의 CT 근무를 08~20시에서 11~23시로 이동 (기준 수요 곡선)",
      "values": _spec(final=_R3_LATE)},
+    {"id": "w1_weekend_low", "name": "W1 주말 수요 감소 (토·일 ×0.6)",
+     "desc": "정현 명세 근무표에서 토·일요일 수요를 60%로 줄여 요일 패턴이 판독 대기에 주는 영향을 본다 (가정값)",
+     "values": _spec(wd_mult_5=0.6, wd_mult_6=0.6)},
+    {"id": "w2_noisy", "name": "W2 일별 변동 (CT ±1, MRI ±0.2)",
+     "desc": "정현 명세 근무표에서 매일 수요가 임의로 흔들릴 때 평균과 변동(시드 간)이 어떻게 달라지는지",
+     "values": _spec(ct_daily_var=1.0, mri_daily_var=0.2)},
     {"id": "h4_peak_late", "name": "H4 피크형 수요 + 판독 3 근무 늦춤",
      "desc": "H1 수요 곡선에서 판독 3을 11~23시로 이동 → 수요 모양에 근무표를 맞추면 판독 대기가 줄어드는지",
      "values": _spec(ct_rate=_PEAK_CT, mri_rate=_PEAK_MRI, final=_R3_LATE)},

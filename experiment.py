@@ -146,6 +146,7 @@ def queue_series(events, cfg, bin_min=60):
     timeline: 구간 전체 / profile24: 시계 시각(0~23시)별 일평균."""
     lo, hi = cfg.evaluation.warmup_end, cfg.evaluation.measure_end
     nb = int((hi - lo) // bin_min)
+    step = next(st for st in (1, 2, 3, 4, 6, 8, 12, 24) if nb / st <= 800 or st == 24)   # 타임라인 한 점 = step 시간 평균
     pts = {q: [] for q in QUEUES}
     for e in events:
         if e["event_type"] == "QUEUE_CHANGED" and e["queue"] in pts:
@@ -172,7 +173,7 @@ def queue_series(events, cfg, bin_min=60):
             if ln is not None:
                 cur = ln
         tl = [x / bin_min for x in area]
-        timeline[q] = [round(x, 3) for x in tl]
+        timeline[q] = [round(sum(tl[i:i + step]) / len(tl[i:i + step]), 3) for i in range(0, nb, step)]
         sums, cnt = [0.0] * 24, [0] * 24
         for j, x in enumerate(tl):
             h = int(((lo + j * bin_min + cfg.clock.clock_at_t0) // 60) % 24)
@@ -180,7 +181,8 @@ def queue_series(events, cfg, bin_min=60):
             cnt[h] += 1
         profile[q] = [round(s / c, 3) if c else 0.0 for s, c in zip(sums, cnt)]
     first_clock_hour = int(((lo + cfg.clock.clock_at_t0) // 60) % 24)
-    return {"timeline": timeline, "profile24": profile, "first_clock_hour": first_clock_hour}
+    return {"timeline": timeline, "profile24": profile, "first_clock_hour": first_clock_hour,
+            "timeline_step_h": step}
 
 
 def run_one(values, seed, verify=True):

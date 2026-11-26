@@ -25,13 +25,30 @@ def tri(rng, params):
     return rng.triangular(lo, hi, mode)
 
 
-def _next_rate_change(cfg, modality, t):
+def _day_offsets(cfg, modality):
+    """날짜별 도착률 가감값(건/시간). 변동 0 이면 전부 0 이고 난수도 쓰지 않는다."""
+    n = int((cfg.evaluation.total_end + cfg.clock.clock_at_t0) // 1440) + 2
+    v = cfg.demand.daily_var.get(modality, 0.0)
+    if v <= 0:
+        return [0.0] * n
+    rng = random.Random("%s:daily:%s" % (cfg.evaluation.seed, modality))   # 도착·서비스시간 난수와 분리
+    return [rng.uniform(-v, v) for _ in range(n)]
+
+
+def _rate_at(cfg, modality, t, offs):
+    """시각 t 의 도착률(건/시간) = max(0, 시간대 설정값 + 그날 가감값) x 요일 배수."""
+    d = cfg.clock.day_index(t)
+    base = cfg.demand.rate_per_hour[modality][cfg.clock.hour_at(t)]
+    w = cfg.demand.weekday_mult[(cfg.demand.start_weekday + d) % 7]
+    return max(0.0, base + offs[d]) * w
+
+
+def _next_rate_change(cfg, modality, t, offs):
     """t 이후 도착률이 달라지는 첫 정시. 같은 률이 이어지는 시각은 건너뛴다.
-    (률이 같으면 재시작하지 않아 표본 경로가 시간대 수와 무관하다.)"""
-    table = cfg.demand.rate_per_hour[modality]
-    cur = table[cfg.clock.hour_at(t)]
+    (률이 같으면 재시작하지 않아 표본 경로가 시간대·날짜 수와 무관하다.)"""
+    cur = _rate_at(cfg, modality, t, offs)
     b = cfg.clock.next_change(t)
-    while b < cfg.evaluation.total_end and table[cfg.clock.hour_at(b)] == cur:
+    while b < cfg.evaluation.total_end and _rate_at(cfg, modality, b, offs) == cur:
         b = cfg.clock.next_change(b)
     return b
 
@@ -40,10 +57,11 @@ def _arrival_times(cfg, modality, rng):
     """시간대별 비례율을 갖는 포아송 과정 (률이 바뀌는 순간에 재시작; 지수분포의 무기억성 이용)."""
     horizon = cfg.evaluation.total_end
     times = []
+    offs = _day_offsets(cfg, modality)
     t = 0.0
     while t < horizon:
-        boundary = _next_rate_change(cfg, modality, t)
-        rate = cfg.demand.rate_per_hour[modality][cfg.clock.hour_at(t)] / 60.0
+        boundary = _next_rate_change(cfg, modality, t, offs)
+        rate = _rate_at(cfg, modality, t, offs) / 60.0
         if rate <= 0:
             t = boundary
             continue

@@ -26,6 +26,10 @@ class ClockConfig:
     def hour_at(self, t):
         return int(((t + self.clock_at_t0) % 1440) // 60)
 
+    def day_index(self, t):
+        """시뮬레이션 달력의 몇 번째 날(0부터, 자정 기준)인지."""
+        return int((t + self.clock_at_t0) // 1440)
+
     def next_change(self, t):
         """t 보다 뒤의 첫 정시(시각이 바뀌는 순간)."""
         d = 60 - ((t + self.clock_at_t0) % 60)
@@ -40,6 +44,11 @@ class DemandConfig:
         MRI: by_hours(1.2, 0.3),
     })
     urgent_ratio: dict = field(default_factory=lambda: {CT: 0.20, MRI: 0.10})
+    # 일별 변동: 매일 하루 단위로 도착률에 -x ~ +x (건/시간) 를 균등분포로 더한다 (0 = 없음). 시드가 같으면 같은 날엔 같은 값.
+    daily_var: dict = field(default_factory=lambda: {CT: 0.0, MRI: 0.0})
+    # 요일별 배수 (월=0 ... 일=6) 와 시뮬레이션 첫날의 요일
+    weekday_mult: list = field(default_factory=lambda: [1.0] * 7)
+    start_weekday: int = 0
 
 
 @dataclass

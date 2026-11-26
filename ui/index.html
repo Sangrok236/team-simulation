@@ -263,7 +263,7 @@ table.hed { border-collapse: separate; border-spacing: 2px; font-size: 12px; wid
     </section>
 
     <section class="card" id="loadCard">
-      <div class="ch"><h2>시간대별 예상 부하</h2><i class="qm" tabindex="0" data-tip="그 시각의 도착률 × 평균 처리시간 ÷ 용량. 100%를 넘으면 그 시간 동안 대기열이 늘어난다 (뒤에 여유 시간이 있으면 다시 줄어든다). 최종판독은 '검사 종류별로 읽을 수 있는 자리'를 반영해 가장 빡빡한 조합 기준으로 계산한다. 손계산이라 대기 시간의 실제 값은 시뮬레이션으로 확인해야 한다.">?</i>
+      <div class="ch"><h2>시간대별 예상 부하</h2><i class="qm" tabindex="0" data-tip="그 시각의 도착률 × 평균 처리시간 ÷ 용량. 100%를 넘으면 그 시간 동안 대기열이 늘어난다 (뒤에 여유 시간이 있으면 다시 줄어든다). 최종판독은 '검사 종류별로 읽을 수 있는 자리'를 반영해 가장 빡빡한 조합 기준으로 계산한다. 요일별 배수를 쓰면 가장 바쁜 요일 기준으로, 일별 변동은 반영하지 않고 평균으로 그린다. 손계산이라 대기 시간의 실제 값은 시뮬레이션으로 확인해야 한다.">?</i>
         <span class="sub" id="loadSub"></span></div>
       <div class="chart" id="loadChart"></div>
       <div class="legend" id="loadLegend"></div>
@@ -604,10 +604,11 @@ function finishPaint() {
 }
 
 /* ---------------------------------------------------------------- 시간대별 예상 부하 */
+const wdMults = () => [0, 1, 2, 3, 4, 5, 6].map(i => values["wd_mult_" + i]);
 const triMean = k => (values[k + "_min"] + values[k + "_mode"] + values[k + "_max"]) / 3;
 const rho = (work, cap) => work <= 1e-12 ? 0 : cap <= 0 ? Infinity : work / cap;
 function loadModel() {
-  const v = values, m = v.demand_mult, out = { ct: [], mri: [], rd: [], det: [] };
+  const v = values, wmax = Math.max(...wdMults()), m = v.demand_mult * wmax, out = { ct: [], mri: [], rd: [], det: [] };   // 요일 배수는 가장 바쁜 요일 기준
   for (let h = 0; h < 24; h++) {
     const lc = v.ct_rate[h] * m, lm = v.mri_rate[h] * m;
     const cc = Math.min(v.ct_units, onCount(v.ct_slots, h)), cm = Math.min(v.mri_units, onCount(v.mri_slots, h));
@@ -660,12 +661,13 @@ function renderLoads() {
   hit.addEventListener("mouseleave", () => { hideTip(host); lx.setAttribute("visibility", "hidden"); });
   $("#loadLegend").innerHTML = S.map(se => `<span><i style="background:${se.c}"></i>${se.n}</span>`).join("");
   const over = [overText(M.ct, "CT 촬영"), overText(M.mri, "MRI 촬영"), overText(M.rd, "최종판독")].filter(Boolean);
-  $("#loadSub").textContent = over.length ? "⚠ 100% 초과: " + over.join(" · ") : "100%를 넘는 시간대 없음";
-  const mm = v.demand_mult, ctDay = v.ct_rate.reduce((a, b) => a + b, 0) * mm, mriDay = v.mri_rate.reduce((a, b) => a + b, 0) * mm;
+  const wmx = Math.max(...wdMults());
+  $("#loadSub").textContent = (over.length ? "⚠ 100% 초과: " + over.join(" · ") : "100%를 넘는 시간대 없음") + (wmx !== 1 ? ` · 가장 바쁜 요일(×${nf(wmx, 2)}) 기준` : "");
+  const mm = v.demand_mult * (wdMults().reduce((a, b) => a + b, 0) / 7), ctDay = v.ct_rate.reduce((a, b) => a + b, 0) * mm, mriDay = v.mri_rate.reduce((a, b) => a + b, 0) * mm;
   const rdHours = v.final.reduce((a, row) => a + row.filter(o => o !== "off").length, 0);
   let ctSlot = 0, mriSlot = 0;
   for (let h = 0; h < 24; h++) { ctSlot += Math.min(onCount(v.ct_slots, h), v.ct_units); mriSlot += Math.min(onCount(v.mri_slots, h), v.mri_units); }
-  $("#lstat").innerHTML = `<span>하루 요청 <b>CT ${nf(ctDay, 0)}건 · MRI ${nf(mriDay, 0)}건</b></span><span>촬영 슬롯 <b>CT ${ctSlot} · MRI ${mriSlot}</b> 자리·시간/일</span><span>최종판독 <b>${v.final.length}</b>자리 · 근무 <b>${rdHours}</b> 자리·시간/일</span><span>가판독 <b>${v.prelim.length}</b>자리</span>`;
+  $("#lstat").innerHTML = `<span>하루 평균 요청 <b>CT ${nf(ctDay, 0)}건 · MRI ${nf(mriDay, 0)}건</b></span><span>촬영 슬롯 <b>CT ${ctSlot} · MRI ${mriSlot}</b> 자리·시간/일</span><span>최종판독 <b>${v.final.length}</b>자리 · 근무 <b>${rdHours}</b> 자리·시간/일</span><span>가판독 <b>${v.prelim.length}</b>자리</span>`;
 }
 
 /* ---------------------------------------------------------------- 집계 */
@@ -683,7 +685,7 @@ function aggregate(results) {
     keys.forEach(q => { const L = f(results[0])[q].length; out[q] = Array.from({ length: L }, (_, i) => results.reduce((s, r) => s + f(r)[q][i], 0) / results.length); });
     return out;
   };
-  return { kpi, profile24: avg(r => r.series.profile24), timeline: avg(r => r.series.timeline), first_clock_hour: results[0].series.first_clock_hour };
+  return { kpi, profile24: avg(r => r.series.profile24), timeline: avg(r => r.series.timeline), first_clock_hour: results[0].series.first_clock_hour, step: results[0].series.timeline_step_h || 1 };
 }
 function suggestName() {
   const diff = changedKeys();
@@ -700,6 +702,8 @@ async function runExperiment() {
   const n = Math.max(1, Math.min(30, parseInt($("#nSeeds").value) || 1)), base = parseInt($("#baseSeed").value) || 1;
   const name = $("#runName").value.trim() || suggestName();
   const snapshot = { ...values };
+  const totalDays = values.warmup_days + values.measure_days + values.followup_days;
+  if (totalDays > 60) toast(`총 ${totalDays}일 시뮬레이션이라 시드 하나에 ${Math.max(5, Math.round(totalDays * 0.045))}초 안팎 걸립니다. 시드 수를 줄이면 더 빨리 끝납니다.`);
   running = true; abortFlag = false;
   $("#run").disabled = true; $("#stop").style.display = "";
   const results = [], t0 = performance.now();
@@ -806,7 +810,8 @@ function renderQueue() {
   s += `</g><g>`; for (let i = 0; i <= 4; i++) { const v = ymax * i / 4; s += `<text x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${nf(v, ymax < 5 ? 1 : 0)}</text>`; }
   s += `</g><g class="axis"><line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}"/></g>`;
   if (prof) for (let h = 0; h < 24; h += 3) s += `<text x="${X(h)}" y="${H - 10}" text-anchor="middle">${String(h).padStart(2, "0")}시</text>`;
-  else for (let i = 0; i < N; i += 24) s += `<text x="${X(i)}" y="${H - 10}" text-anchor="middle">${i / 24 + 1}일차</text>`;
+  else { const st = rs[0].step || 1, ppd = 24 / st, days = Math.max(1, Math.round(N / ppd)), every = Math.max(1, Math.ceil(days / 8));
+    for (let d = 0; d < days; d += every) s += `<text x="${X(d * ppd)}" y="${H - 10}" text-anchor="middle">${d + 1}일차</text>`; }
   series.forEach(se => {
     const d = se.y.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
     s += `<path d="${d}" fill="none" style="stroke:${col(se.run)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
@@ -821,7 +826,7 @@ function renderQueue() {
     const i = Math.max(0, Math.min(N - 1, Math.round((px - m.l) / iw * (N - 1))));
     qx.setAttribute("x1", X(i)); qx.setAttribute("x2", X(i)); qx.setAttribute("visibility", "visible");
     dots.innerHTML = series.map(se => `<circle cx="${X(i)}" cy="${Y(se.y[i])}" r="4" style="fill:${col(se.run)};stroke:var(--surface)" stroke-width="2"/>`).join("");
-    const hour = (fch + i) % 24, title = prof ? `${String(i).padStart(2, "0")}시 ~ ${String(i + 1).padStart(2, "0")}시 (일평균)` : `${Math.floor(i / 24) + 1}일차 ${String(hour).padStart(2, "0")}시`;
+    const st = rs[0].step || 1, tt = i * st, hour = (fch + tt) % 24, title = prof ? `${String(i).padStart(2, "0")}시 ~ ${String(i + 1).padStart(2, "0")}시 (일평균)` : `${Math.floor(tt / 24) + 1}일차 ${hh(hour)}시${st > 1 ? ` ~ ${hh((hour + st) % 24)}시 (${st}시간 평균)` : ""}`;
     showTip(host, `<div class="t">${title}</div>` + series.map(se => `<div class="r"><span class="runtag"><i class="dot" style="background:${col(se.run)}"></i>${esc(se.run.name)}</span><b>${nf(se.y[i], 2)}건</b></div>`).join(""),
       (e.clientX - host.getBoundingClientRect().left), (e.clientY - host.getBoundingClientRect().top));
   });

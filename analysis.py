@@ -6,6 +6,7 @@
  * 완료되지 않은 요청은 평균에서 빼지 않고 '미완료 N건'으로 따로 표시한다.
 """
 import math
+import bisect
 from collections import defaultdict
 
 from config import CT, MRI
@@ -235,8 +236,10 @@ def check_model(events, cfg):
     for m, units, slots in ((CT, cfg.scan.ct_units, cfg.scan.ct_slots), (MRI, cfg.scan.mri_units, cfg.scan.mri_slots)):
         iv = sorted((c["scan_start"], c.get("scan_end", float("inf")), c["case_id"], c["scan_unit"])
                     for c in cases.values() if c["modality"] == m and "scan_start" in c)
+        starts = [x[0] for x in iv]                                        # iv 는 시작 시각순
+        ends = sorted(x[1] for x in iv)
         for s, e, cid, u in iv:
-            conc = sum(1 for s2, e2, c2, _ in iv if s2 <= s < e2)       # 자신 포함
+            conc = bisect.bisect_right(starts, s) - bisect.bisect_right(ends, s)   # s2<=s<e2 인 건수 (자신 포함)
             if conc > min(units, slots[cfg.clock.hour_at(s)]):
                 bad.append((cid, round(s, 1), conc))
         by_unit = defaultdict(list)
@@ -278,12 +281,20 @@ def check_model(events, cfg):
         items = [(c[stage_ready] if isinstance(stage_ready, str) else stage_ready(c), c[stage_start], c)
                  for c in cases.values() if filt(c) and stage_start in c]
         items = [(r, s, c) for r, s, c in items if r is not None]
+        # 일반 건(r, s)보다 먼저 준비된(r2 <= r) 응급이 더 늦게(s2 > s) 시작했다면 위반.
+        # 응급을 준비 시각순으로 두고 '지금까지 가장 늦은 시작'을 누적해 이분탐색으로 확인한다.
+        urg = sorted((r2, s2, c2["case_id"]) for r2, s2, c2 in items if c2["urgent"])
+        keys = [u[0] for u in urg]
+        run_max, best = [], None
+        for u in urg:
+            if best is None or u[1] > best[1]:
+                best = u
+            run_max.append(best)
         for r, s, c in items:
             if not c["urgent"]:
-                for r2, s2, c2 in items:
-                    if c2["urgent"] and r2 <= r and s2 > s and c2["modality"] == c["modality"]:
-                        bad.append((label, c["case_id"], c2["case_id"]))
-                        break
+                i = bisect.bisect_right(keys, r)
+                if i and run_max[i - 1][1] > s:
+                    bad.append((label, c["case_id"], run_max[i - 1][2]))
     prio("request", "scan_start", "CT 촬영", lambda c: c["modality"] == CT)
     prio("safety_end", "scan_start", "MRI 촬영", lambda c: c["modality"] == MRI)
     prio("request", "safety_start", "MRI 안전확인", lambda c: c["modality"] == MRI)
