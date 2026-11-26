@@ -20,6 +20,7 @@ def build_case_table(events):
         if et == "EXAM_REQUESTED":
             c = e["case"]
             cases[cid] = {"case_id": cid, "modality": c["modality"], "urgent": c["urgent"],
+                          "patient_group": c["patient_group"], "has_prelim": c["has_prelim"],
                           "request": e["timestamp"]}
         elif et == "SAFETY_STARTED":
             cases[cid]["safety_start"] = e["timestamp"]
@@ -68,6 +69,8 @@ def _groups(cases):
         out[m] = [c for c in cases if c["modality"] == m]
         out[m + "-URGENT"] = [c for c in out[m] if c["urgent"]]
         out[m + "-ROUTINE"] = [c for c in out[m] if not c["urgent"]]
+    for g in ("ED", "IP", "OP"):
+        out["PG-" + g] = [c for c in cases if c["patient_group"] == g]
     return out
 
 
@@ -100,10 +103,13 @@ def timing_metrics(cases, cfg):
                                     if _in(c.get("safety_start"), lo, hi)])
         r["촬영 대기"] = summarize([c["scan_start"] - c.get("safety_end", c["request"]) for c in grp
                                   if _in(c.get("scan_start"), lo, hi)])
-        r["최종판독 대기"] = summarize([c["final_start"] - (c.get("prelim_end") if c["urgent"] else c["scan_end"])
+        r["최종판독 대기"] = summarize([c["final_start"] - (c.get("prelim_end") if c["has_prelim"] else c["scan_end"])
                                     for c in grp if _in(c.get("final_start"), lo, hi)])
         r["응급 초기보고(가판독-촬영)"] = summarize([c["prelim_end"] - c["scan_end"] for c in grp
-                                              if c["urgent"] and _in(c.get("prelim_end"), lo, hi)])
+                                              if c["has_prelim"] and _in(c.get("prelim_end"), lo, hi)])
+        # 응급의 최초 결과 = 가판독 또는 최종판독 중 먼저 끝난 시각 (요청 기준)
+        r["응급 최초 결과(요청→첫 결과)"] = summarize([min(c.get("prelim_end", 1e18), c["final_end"]) - c["request"]
+                                              for c in grp if c["urgent"] and _in(c["request"], lo, hi) and "final_end" in c])
         res[name] = r
     return res
 
@@ -195,9 +201,79 @@ def queue_metrics(events, cfg):
     return out
 
 
+PERIOD_DAYS = {"일": 1.0, "주": 7.0, "월": 30.0, "연": 365.0}
+
+
+def _pass(cfg, t, it):
+    """항목의 시간대·요일 조건을 시각 t 가 만족하는가."""
+    h = cfg.clock.hour_at(t)
+    if it["time"] == "주간" and not 8 <= h < 20:
+        return False
+    if it["time"] == "야간" and 8 <= h < 20:
+        return False
+    wd = (cfg.demand.start_weekday + cfg.clock.day_index(t)) % 7
+    if it["weekday"] == "평일" and wd >= 5:
+        return False
+    if it["weekday"] == "주말" and wd < 5:
+        return False
+    return True
+
+
+def _case_pass(c, it):
+    return ((it["patient"] == "전체" or c["patient_group"] == it["patient"])
+            and (it["urgency"] == "전체" or (c["urgent"] == (it["urgency"] == "응급"))))
+
+
+def cost_metrics(cfg, resource, cases):
+    """집계 구간의 비용·수입 (만원). 모두 하루 평균으로 환산한다. 항목은 사용자가 정한 목록."""
+    lo, hi = cfg.evaluation.warmup_end, cfg.evaluation.measure_end
+    cc, sc, st = cfg.cost, cfg.scan, cfg.staffing
+    days = (hi - lo) / 1440.0
+    segs = []                                    # (시작, 길이h, 시각) 정시 구간
+    t = float(lo)
+    while t < hi:
+        nxt = min(cfg.clock.next_change(t), hi)
+        segs.append((t, (nxt - t) / 60.0, cfg.clock.hour_at(t)))
+        t = nxt
+    usage = {
+        "ct_active": lambda h: min(sc.ct_units, sc.ct_slots[h]),
+        "mri_active": lambda h: min(sc.mri_units, sc.mri_slots[h]),
+        "tech_slots": lambda h: sc.ct_slots[h] + sc.mri_slots[h] + sc.safety_slots[h],
+        "reader_hours": lambda h: len(st.final_assignment.get(h, {})) + len(st.prelim_assignment.get(h, ())),
+    }
+    cl = list(cases.values())
+    ev = {"ct_scans": ("scan_end", lambda c: c["modality"] == CT), "mri_scans": ("scan_end", lambda c: c["modality"] == MRI),
+          "all_scans": ("scan_end", lambda c: True), "final_reads": ("final_end", lambda c: True),
+          "prelim_reads": ("prelim_end", lambda c: True)}
+    stock = {"fixed": 1.0, "ct_owned": sc.ct_units, "mri_owned": sc.mri_units,
+             "ct_new": max(0, sc.ct_units - cc.base_ct), "mri_new": max(0, sc.mri_units - cc.base_mri)}
+    ot_h = sum(resource["초과근무 합계(분)"].values()) / 60.0
+    rd_h = sum(usage["reader_hours"](h) * dt for _, dt, h in segs) / days
+    out = []
+    for it in cc.items:
+        b, amt = it["basis"], it["amount"]
+        if b in stock:
+            per_day = stock[b] * amt / PERIOD_DAYS[it["period"]]
+        elif b in usage:
+            hours = sum(usage[b](h) * dt for t0, dt, h in segs if _pass(cfg, t0, it))
+            per_day = hours * amt / days
+        elif b == "overtime":
+            per_day = ot_h * amt
+        else:
+            key, flt = ev[b]
+            n = sum(1 for c in cl if flt(c) and _in(c.get(key), lo, hi) and _pass(cfg, c[key], it) and _case_pass(c, it))
+            per_day = n * amt / days
+        out.append({"id": it["id"], "name": it["name"], "type": it["type"], "per_day": per_day})
+    inc = sum(x["per_day"] for x in out if x["type"] == "수입")
+    exp = sum(x["per_day"] for x in out if x["type"] == "지출")
+    return {"items": out, "income": inc, "expense": exp, "net": inc - exp,
+            "reader_hours_day": rd_h, "ot_hours_day": ot_h / days}
+
+
 def analyze(events, cfg):
     cases = build_case_table(events)
-    return {"timing": timing_metrics(cases, cfg), "resource": resource_metrics(cases, cfg),
+    res = resource_metrics(cases, cfg)
+    return {"timing": timing_metrics(cases, cfg), "resource": res, "cost": cost_metrics(cfg, res, cases),
             "queue": queue_metrics(events, cfg), "cases": cases}
 
 
@@ -218,12 +294,10 @@ def check_model(events, cfg):
            or d["READING_ASSIGNED:PRELIM"] > 1 or d["FINAL_COMPLETED"] > 1 or d["PRELIM_COMPLETED"] > 1]
     add("같은 검사가 중복 촬영·판독되지 않는다", dup)
 
-    bad = [c["case_id"] for c in cases.values()
-           if ("prelim_start" in c) != (c["urgent"] and "scan_end" in c and "prelim_start" in c)
-           or (not c["urgent"] and "prelim_start" in c)]
-    add("가판독은 응급 요청에만 생성된다", bad)
+    bad = [c["case_id"] for c in cases.values() if "prelim_start" in c and not c["has_prelim"]]
+    add("가판독은 가판독 대상 요청에만 생성된다", bad)
 
-    bad = [c["case_id"] for c in cases.values() if "final_start" in c and c["urgent"]
+    bad = [c["case_id"] for c in cases.values() if "final_start" in c and c["has_prelim"]
            and ("prelim_end" not in c or c["final_start"] < c["prelim_end"])]
     add("응급 요청의 최종판독은 가판독 완료 후에 시작한다", bad)
 

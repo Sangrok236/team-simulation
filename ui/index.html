@@ -72,6 +72,24 @@ aside#side { position: sticky; top: 88px; max-height: calc(100vh - 106px); overf
 .side-top .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .chip { font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--ink); border: 1px solid var(--border); white-space: nowrap; }
+.crow { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; padding: 6px 12px 6px 11px; border-left: 3px solid transparent; border-top: 1px dashed var(--border); }
+.crow.off { opacity: .5; }
+.crow .nm { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.crow .tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; border: 1px solid var(--axis); color: var(--ink2); }
+.crow .tag.inc { color: var(--accent); border-color: var(--accent); }
+.crow .sub2 { grid-column: 2 / 4; color: var(--muted); font-size: 11.5px; line-height: 1.35; }
+.crow .am { display: flex; align-items: center; gap: 3px; }
+.crow .am input { width: 118px; text-align: right; }
+.crow .ib { border: 0; background: none; cursor: pointer; color: var(--muted); padding: 2px 4px; border-radius: 6px; font-size: 14px; }
+.crow .ib:hover { background: var(--accent-wash); color: var(--ink); }
+.cadd { display: flex; gap: 6px; padding: 8px 14px; flex-wrap: wrap; }
+dialog#costDlg { border: 1px solid var(--axis); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 0; width: min(520px, 94vw); }
+dialog#costDlg::backdrop { background: rgba(0,0,0,.35); }
+#costDlg form { padding: 16px 18px; display: grid; gap: 10px; }
+#costDlg label.f { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; }
+#costDlg .seg { display: flex; gap: 6px; }
+#costDlg .prev { background: var(--accent-wash); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; }
+#costDlg .acts { display: flex; justify-content: flex-end; gap: 8px; }
 details.grp { border-bottom: 1px solid var(--border); }
 details.grp:last-child { border-bottom: 0; }
 details.grp > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; align-items: center; gap: 8px; font-weight: 600; user-select: none; }
@@ -235,11 +253,13 @@ table.hed { border-collapse: separate; border-spacing: 2px; font-size: 12px; wid
 <header>
   <div class="hbar">
     <div class="title"><h1>신경영상 DEVS 실험실</h1><small>CT·MRI 촬영–판독 시스템 · 조건을 바꿔 실행하고 비교</small></div>
-    <div class="field"><label for="preset">예시 조건</label><i class="qm" tabindex="0" data-tip="팀이 바로 써볼 수 있는 조건 묶음. 고른 뒤 '적용'을 누르면 왼쪽 패널과 24시간 편집기 값이 바뀐다 (실행은 따로 ▶ 실행). 팀이 정한 실험 정의가 아니라 예시일 뿐이다.">?</i>
+    <div class="field"><label for="preset">프리셋</label><i class="qm" tabindex="0" data-tip="저장해 둔 조건 묶음. 고른 뒤 '적용'을 누르면 왼쪽 패널과 24시간 편집기 값이 바뀐다 (실행은 따로 ▶ 실행). 기본 프리셋은 명세에 나온 기준값·수요 비교 조건이고, 팀이 만든 조건은 '＋ 내 프리셋 저장'으로 추가한다.">?</i>
       <select id="preset" class="ctl" style="max-width:250px"></select>
-      <button id="applyPreset" class="btn">적용</button></div>
+      <button id="applyPreset" class="btn">적용</button>
+      <button id="savePreset" class="btn" title="지금 왼쪽 패널·24시간 편집기의 조건을 이름을 붙여 내 프리셋으로 추가합니다. 기본값은 바뀌지 않습니다.">＋ 내 프리셋 저장</button>
+      <button id="delPreset" class="btn" title="선택한 내 프리셋을 삭제합니다 (기본 프리셋은 삭제할 수 없음)" disabled>삭제</button></div>
     <div class="spacer"></div>
-    <div class="field"><label for="runName">실험 이름</label><i class="qm" tabindex="0" data-tip="결과 목록과 차트에 표시될 이름. 비워 두면 예시 조건 이름이나 '실험 N'으로 자동 지정된다.">?</i><input id="runName" class="ctl" placeholder="자동: 예시/실험 N"></div>
+    <div class="field"><label for="runName">실험 이름</label><i class="qm" tabindex="0" data-tip="결과 목록과 차트에 표시될 이름. 비워 두면 프리셋 이름이나 '실험 N'으로 자동 지정된다.">?</i><input id="runName" class="ctl" placeholder="자동: 프리셋/실험 N"></div>
     <div class="field"><label for="nSeeds">시드 수</label><i class="qm" tabindex="0" data-tip="시드 = 무작위 숫자의 출발점. 같은 조건을 시드만 바꿔 여러 번 돌리면 우연에 따른 흔들림이 보인다. 결과는 평균 ± 표준편차로 요약된다. 5회 이상을 권장.">?</i><input id="nSeeds" class="ctl" type="number" min="1" max="30" value="5"></div>
     <div class="field"><label for="baseSeed">시작 시드</label><i class="qm" tabindex="0" data-tip="첫 번째 시드 값. 시드 수가 5이면 시작 시드, +1, +2, +3, +4 로 돌린다. 실험끼리 같은 시드를 쓰면 같은 요청(도착 시각·처리시간)을 두고 비교하게 되어 차이가 조건 때문임을 믿기 쉽다.">?</i><input id="baseSeed" class="ctl" type="number" value="20261122" style="width:104px"></div>
     <button id="run" class="btn primary">▶ 실행</button>
@@ -254,7 +274,7 @@ table.hed { border-collapse: separate; border-spacing: 2px; font-size: 12px; wid
   <aside id="side" aria-label="실험 조건"></aside>
   <main>
     <section class="card" id="edCard">
-      <div class="ch"><h2>24시간 편집기</h2><i class="qm" tabindex="0" data-tip="수요·촬영 슬롯·판독 근무를 0~23시 시간대별로 직접 정한다. 줄마다 왼쪽에서 '붓 값'을 고르고, 칸을 클릭하거나 드래그하면 그 값으로 칠해진다. 시계 시각 기준이며 첫날 08:00에 시뮬레이션이 시작한다. 파란 테두리 칸이 기준값과 다른 시간대다.">?</i>
+      <div class="ch"><h2>24시간 편집기</h2><i class="qm" tabindex="0" data-tip="수요·촬영 슬롯·판독 근무를 0~23시 시간대별로 직접 정한다. 줄마다 왼쪽에서 '붓 값'을 고르고, 칸을 클릭하거나 드래그하면 그 값으로 칠해진다. 시계 시각 기준이며 시작 시각은 수요 그룹의 "시작 시각"(기본 0시)이다. 파란 테두리 칸이 기준값과 다른 시간대다.">?</i>
         <div class="seg ed-tabs" id="edTabs" role="group" aria-label="편집할 항목"></div>
         <span class="spacer"></span>
         <button class="btn sm" id="edReset">이 탭 기준값으로</button></div>
@@ -309,6 +329,24 @@ table.hed { border-collapse: separate; border-spacing: 2px; font-size: 12px; wid
     </section>
   </main>
 </div>
+<dialog id="costDlg"><form method="dialog" id="costForm" autocomplete="off">
+  <b id="cdTitle">비용·수입 항목 추가</b>
+  <label class="f">이름<input id="cdName" class="ctl" maxlength="40" placeholder="예: MRI 야간 가동비"></label>
+  <label class="f">구분<span class="seg"><label><input type="radio" name="cdType" value="지출" checked> 지출</label><label><input type="radio" name="cdType" value="수입"> 수입</label></span></label>
+  <label class="f">대상<select id="cdBasis" class="ctl"></select></label>
+  <label class="f">단가 기간<select id="cdPeriod" class="ctl"></select></label>
+  <label class="f">단가 (만원)<input id="cdAmt" class="ctl" type="number" min="0" step="any" value="0"></label>
+  <div id="cdFlt" style="display:grid;gap:8px"></div>
+  <div class="prev" id="cdPrev"></div>
+  <div class="acts"><button type="button" class="btn" id="cdCancel">취소</button><button type="button" class="btn" id="cdOk" style="background:var(--accent);color:#fff;border-color:var(--accent)">저장</button></div>
+</form></dialog>
+<dialog id="presetDlg"><form method="dialog" autocomplete="off" style="padding:16px 18px;display:grid;gap:10px">
+  <b>내 프리셋으로 저장</b>
+  <div class="muted" id="pdInfo" style="font-size:12.5px"></div>
+  <label style="display:grid;gap:4px">프리셋 이름<input id="pdName" class="ctl" maxlength="40"></label>
+  <div id="pdErr" style="color:var(--bad, #c0392b);font-size:12.5px;min-height:16px"></div>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" id="pdCancel">취소</button><button type="button" class="btn" id="pdOk" style="background:var(--accent);color:#fff;border-color:var(--accent)">저장</button></div>
+</form></dialog>
 <div id="toastHost"></div>
 <div id="qmtip" role="tooltip"></div>
 
@@ -317,7 +355,8 @@ table.hed { border-collapse: separate; border-spacing: 2px; font-size: 12px; wid
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const nf = (v, d = 1) => (v == null || Number.isNaN(v)) ? "–" : Number(v).toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
-const STORE = "neuro_devs_lab_v2";
+const STORE = "neuro_devs_lab_v3";            // v3: 명세 합친 버전 기본값으로 바뀌며 이전 저장값은 쓰지 않는다
+const PSTORE = "neuro_devs_user_presets";      // 내 프리셋 (기본값과 별개로 저장)
 const MAXRUNS = 8;
 let schema, PARAMS, BYKEY = {}, KPIS = [], KBY = {}, DEFAULTS = {};
 let values = {}, runs = [], selected = new Set(), baselineId = null, currentId = null;
@@ -331,13 +370,26 @@ const QUEUES = [
 
 /* ---------------------------------------------------------------- 저장 */
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ values, runs, selected: [...selected], baselineId, currentId, barKpis })); }
+  try { localStorage.setItem(STORE, JSON.stringify({ costUnit: "man", values, runs, selected: [...selected], baselineId, currentId, barKpis })); }
   catch (e) { toast("브라우저 저장 공간이 부족해 마지막 변경이 저장되지 않았습니다. 실험을 내보내기 후 정리하세요.", true); }
+}
+const toMan = x => (typeof x === "number" ? x / 10000 : x);
+const itemsToMan = arr => Array.isArray(arr) ? arr.map(c => ({ ...c, amount: toMan(c.amount) })) : arr;
+function migrateToMan(s) {            // 이전에는 금액을 원 단위로 저장했다 -> 만원
+  if (s.costUnit === "man") return s;
+  if (s.values && s.values.cost_items) s.values.cost_items = itemsToMan(s.values.cost_items);
+  (s.runs || []).forEach(r => {
+    if (r.values && r.values.cost_items) r.values.cost_items = itemsToMan(r.values.cost_items);
+    ["net_day", "income_day", "expense_day"].forEach(k => { const o = r.kpi && r.kpi[k]; if (o) ["mean", "sd", "min", "max"].forEach(f => o[f] = toMan(o[f])); });
+    if (r.costDetail) r.costDetail.forEach(c => c.per_day = toMan(c.per_day));
+  });
+  s.costUnit = "man"; return s;
 }
 function load() {
   try {
-    const s = JSON.parse(localStorage.getItem(STORE) || "null");
+    let s = JSON.parse(localStorage.getItem(STORE) || "null");
     if (!s) return;
+    s = migrateToMan(s);
     runs = s.runs || []; selected = new Set(s.selected || []); baselineId = s.baselineId; currentId = s.currentId;
     for (const k in (s.values || {})) if (k in BYKEY && validValue(BYKEY[k], s.values[k])) values[k] = s.values[k];
     if (Array.isArray(s.barKpis)) barKpis = s.barKpis.filter(k => k in KBY);
@@ -360,6 +412,7 @@ const rowsOf = k => BYKEY[k].type === "rows" ? values[k] : [values[k]];
 const defRowsOf = k => BYKEY[k].type === "rows" ? DEFAULTS[k] : [DEFAULTS[k]];
 const onCount = (rows, h) => rows.reduce((a, r) => a + (r[h] ? 1 : 0), 0);
 function validValue(p, v) {
+  if (p.type === "costs") return Array.isArray(v) && v.every(x => x && typeof x === "object" && x.id && x.basis);
   if (p.type === "hourly") return Array.isArray(v) && v.length === 24;
   if (p.type === "rows") return Array.isArray(v) && v.length >= p.min_rows && v.length <= p.max_rows && v.every(r => Array.isArray(r) && r.length === 24);
   return true;
@@ -371,6 +424,8 @@ function runs24(arr) { // 같은 값이 이어지는 구간 [시작, 끝(미포�
   return out;
 }
 function showVal(v) {
+  if (Array.isArray(v) && v.length && v[0] && typeof v[0] === "object" && !Array.isArray(v[0]))
+    return v.filter(c => c.enabled).map(c => `${c.type === "수입" ? "+" : "−"}${c.name} ${won(c.amount)}/${c.period}`).join(" · ") || "비용·수입 없음";
   if (Array.isArray(v) && Array.isArray(v[0])) return v.map((r, i) => `#${i + 1} ${showVal(r)}`).join(" / ");
   return Array.isArray(v) ? runs24(v).map(r => `${r[0]}~${r[1]}시 ${showScalar(r[2])}`).join(" · ") : showScalar(v);
 }
@@ -393,6 +448,12 @@ function diffRows(from, to) {
 function shortLabel(k) { const p = BYKEY[k]; return isHr(p) ? p.short : (p.grid ? p.grid.row + " " + p.grid.col : p.label); }
 function chipText(k, from, to) {
   const p = BYKEY[k];
+  if (p.type === "costs") {
+    const f = new Map(from[k].map(c => [c.id, c])), t = new Map(to[k].map(c => [c.id, c]));
+    const add = [...t.keys()].filter(i => !f.has(i)).length, del = [...f.keys()].filter(i => !t.has(i)).length;
+    const mod = [...t.keys()].filter(i => f.has(i) && !same(f.get(i), t.get(i))).length;
+    return "비용·수입 " + [add && `+${add}`, del && `−${del}`, mod && `수정 ${mod}`].filter(Boolean).join(" ");
+  }
   if (p.type === "rows") return `${p.short} ${diffRows(from[k], to[k])}`;
   return p.type === "hourly" ? `${p.short} ${diffRanges(from[k], to[k])}` : `${shortLabel(k)} ${showScalar(from[k])}→${showScalar(to[k])}`;
 }
@@ -430,10 +491,10 @@ function inputFor(p) {
 }
 function renderSide() {
   const side = $("#side");
-  let h = `<div class="side-top"><div class="row"><b>실험 조건${QM("바꾼 칸은 파란 띠로 표시되고, 아래에 기준값과 달라진 항목이 요약된다. 시간대별 값(수요 곡선, 촬영 슬롯, 판독 자리)은 줄무늬 미리보기로 보이며 오른쪽 '24시간 편집'을 눌러 고친다.")}</b><span><span id="chgCount" class="muted"></span> <button class="btn sm" id="resetAll">전체 초기화</button></span></div><div class="chips" id="chgChips"></div></div>`;
+  let h = `<div class="side-top"><div class="row"><b>실험 조건${QM("바꾼 칸은 파란 띠로 표시되고, 아래에 기준값과 달라진 항목이 요약된다. 시간대별 값(수요 곡선, 촬영 슬롯, 판독 자리)은 줄무늬 미리보기로 보이며 오른쪽 '24시간 편집'을 눌러 고친다.")}</b><span><span id="chgCount" class="muted"></span> <button class="btn sm" id="resetAll" title="모든 조건을 명세 기본값으로 되돌립니다">명세 기본값으로</button></span></div><div class="chips" id="chgChips"></div></div>`;
   for (const g of schema.groups) {
     const ps = PARAMS.filter(p => p.group === g.id);
-    const plain = ps.filter(p => !p.grid && !isHr(p)), grid = ps.filter(p => p.grid), hourly = ps.filter(isHr);
+    const plain = ps.filter(p => !p.grid && !isHr(p) && p.type !== "costs"), costs = ps.filter(p => p.type === "costs"), grid = ps.filter(p => p.grid), hourly = ps.filter(isHr);
     h += `<details class="grp" data-g="${g.id}" ${["demand", "scan", "staff"].includes(g.id) ? "open" : ""}><summary>${g.label}${QM(g.help)}<span class="badge" data-badge="${g.id}" hidden></span></summary>`;
     for (const p of plain)
       h += `<div class="prow" data-row="${p.key}"><span><label for="p_${p.key}">${p.label}</label>${QM(p.help)}</span><span class="in">${inputFor(p)}<span class="unit">${p.unit || ""}</span><button class="rst" data-rst="${p.key}" title="기본값으로" aria-label="기본값으로">↺</button></span></div>`;
@@ -450,6 +511,7 @@ function renderSide() {
       }
       h += `</tbody></table>`;
     }
+    for (const p of costs) h += `<div id="costBlock" data-row="${p.key}"></div>`;
     h += `</details>`;
   }
   side.innerHTML = h;
@@ -462,7 +524,115 @@ function renderSide() {
   side.querySelectorAll("[data-edit]").forEach(a => { a.addEventListener("click", () => goEdit(a.dataset.edit)); a.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goEdit(a.dataset.edit); } }); });
   side.querySelectorAll("[data-mini]").forEach(m => m.addEventListener("click", () => goEdit(m.dataset.mini)));
   $("#resetAll").addEventListener("click", () => { values = { ...DEFAULTS }; replaced(); });
-  renderMini(); refreshChanged();
+  renderMini(); renderCosts(); refreshChanged();
+}
+
+/* ---------------------------------------------------------------- 비용·수입 항목 (추가·수정·삭제·체크) */
+const CD = () => schema.costDef, CB = id => CD().bases.find(b => b.id === id);
+const man = (v, max = 2) => Number(v).toLocaleString("ko-KR", { maximumFractionDigits: max });   // 만원 단위, 소수는 필요한 만큼
+const won = v => man(v) + "만원";
+function itemTag(it) {            // 금액 칸 옆의 짧은 단위: (대당·월) (건당) (시간)
+  const b = CB(it.basis);
+  if (b.kind === "fixed") return `(${it.period})`;
+  if (b.kind === "stock") return `(${b.unit}당·${it.period})`;
+  if (b.kind === "count") return "(건당)";
+  return `(${b.unit ? b.unit + "당·" : ""}시간)`;
+}
+function itemFilterText(it) {
+  const b = CB(it.basis), out = [];
+  if (b.filters.includes("time") && it.time !== "전체") out.push(it.time === "주간" ? "주간(08~20시)" : "야간(20~08시)");
+  if (b.filters.includes("weekday") && it.weekday !== "전체") out.push(it.weekday);
+  if (b.filters.includes("patient") && it.patient !== "전체") out.push(it.patient + " 환자");
+  if (b.filters.includes("urgency") && it.urgency !== "전체") out.push(it.urgency + " 검사");
+  return out.length ? out.join("·") + "만 해당" : "조건 없음(항상)";
+}
+function itemDesc(it) {           // 마우스를 ? 에 올리면 보이는 설명 (항목 설정에 따라 바뀜)
+  const b = CB(it.basis), a = it.amount, pd = CD().periodDays[it.period], who = it.type === "수입" ? "수입" : "지출";
+  let t;
+  if (b.kind === "fixed") t = `병원 전체에 ${it.period}마다 ${won(a)} ${who}. 하루 환산 ${won(a / pd)}.`;
+  else if (b.kind === "stock") t = `${b.label} 1${b.unit}당 ${it.period} ${won(a)} ${who}. 하루 환산 ${won(a / pd)}/${b.unit}.`;
+  else if (b.kind === "count") t = `${b.label}에 건당 ${won(a)} ${who}.`;
+  else t = `${b.label}: ${b.unit ? "1" + b.unit + "을 " : ""}1시간 쓸 때마다 ${won(a)} ${who}.`;
+  return `${t} ${b.desc}. [${itemFilterText(it)}]`;
+}
+function renderCosts() {
+  const host = $("#costBlock"); if (!host) return;
+  const key = host.dataset.row, items = values[key] || [];
+  const n = items.filter(c => c.enabled).length;
+  host.innerHTML = `<div class="crow" style="border-top:0"><input type="checkbox" id="ciAll" title="전체 선택 / 해제" aria-label="비용·수입 항목 전체 선택"><span class="nm"><b>전체 선택</b><span class="muted" style="font-size:12px">체크한 항목만 계산됩니다 (${n}/${items.length}) · 금액은 만원</span></span><span></span></div>` +
+    items.map((c, i) => `<div class="crow ${c.enabled ? "" : "off"}" data-ci="${i}">
+      <input type="checkbox" data-cien="${i}" ${c.enabled ? "checked" : ""} title="체크하면 계산에 포함" aria-label="${esc(c.name)} 적용">
+      <span class="nm"><span class="tag ${c.type === "수입" ? "inc" : ""}">${c.type}</span><span>${esc(c.name)}</span>${QM(itemDesc(c))}</span>
+      <span class="am"><input class="ctl" type="number" min="0" step="any" value="${c.amount}" data-ciamt="${i}" aria-label="${esc(c.name)} 금액"><span class="unit">만원 ${itemTag(c)}</span></span>
+      <span class="sub2">${esc(CB(c.basis).label)}${itemFilterText(c) === "조건 없음(항상)" ? "" : " · " + esc(itemFilterText(c))}
+        <button class="ib" data-ciedit="${i}" title="수정">✎</button><button class="ib" data-cidel="${i}" title="삭제">🗑</button></span></div>`).join("") +
+    `<div class="cadd"><button class="btn sm" id="ciAdd">＋ 항목 추가</button><button class="btn sm" id="ciReset" title="비용·수입 항목을 명세 기본 목록으로 되돌립니다">기본 항목으로</button></div>`;
+  const setItems = arr => { values[key] = arr; renderCosts(); refreshChanged(); save(); };
+  const all = $("#ciAll"); all.checked = items.length > 0 && n === items.length; all.indeterminate = n > 0 && n < items.length; all.disabled = !items.length;
+  all.onchange = () => setItems(values[key].map(x => ({ ...x, enabled: all.checked })));
+  host.querySelectorAll("[data-cien]").forEach(c => c.onchange = () => setItems(values[key].map((x, i) => i === +c.dataset.cien ? { ...x, enabled: c.checked } : x)));
+  host.querySelectorAll("[data-ciamt]").forEach(inp => inp.oninput = () => {
+    const v = Number(inp.value), bad = inp.value === "" || Number.isNaN(v) || v < 0; inp.classList.toggle("bad", bad); if (bad) return;
+    values[key] = values[key].map((x, i) => i === +inp.dataset.ciamt ? { ...x, amount: v } : x);
+    const q = inp.closest(".crow").querySelector(".qm"); if (q) q.dataset.tip = itemDesc(values[key][+inp.dataset.ciamt]);
+    refreshChanged(); save();
+  });
+  host.querySelectorAll("[data-cidel]").forEach(b => b.onclick = () => {
+    const c = values[key][+b.dataset.cidel]; if (!confirm(`“${c.name}” 항목을 삭제할까요? (기본 항목으로 버튼으로 되돌릴 수 있음)`)) return;
+    setItems(values[key].filter((_, i) => i !== +b.dataset.cidel));
+  });
+  host.querySelectorAll("[data-ciedit]").forEach(b => b.onclick = () => openCostDlg(+b.dataset.ciedit));
+  $("#ciAdd").onclick = () => openCostDlg(-1);
+  $("#ciReset").onclick = () => { if (confirm("비용·수입 항목을 명세 기본 목록으로 되돌릴까요? (직접 만든 항목은 사라집니다)")) setItems(JSON.parse(JSON.stringify(DEFAULTS[key]))); };
+}
+let cdIndex = -1;
+function cdRead() {
+  const b = CB($("#cdBasis").value), it = { id: "", name: $("#cdName").value.trim(), type: document.querySelector('input[name="cdType"]:checked').value,
+    enabled: true, basis: b.id, period: $("#cdPeriod").value, amount: Number($("#cdAmt").value), time: "전체", weekday: "전체", patient: "전체", urgency: "전체" };
+  b.filters.forEach(f => { const el = $("#cdf_" + f); if (el) it[f] = el.value; });
+  return it;
+}
+function cdRefresh(keepPeriod) {            // 대상이 바뀌면 단가 기간·조건 칸이 달라진다
+  const b = CB($("#cdBasis").value), prev = $("#cdPeriod").value;
+  $("#cdPeriod").innerHTML = b.periods.map(x => `<option value="${x}">${x === "건" ? "건당" : x === "시간" ? "시간당" : (b.kind === "fixed" ? x + "마다" : b.unit + "당 " + x)}</option>`).join("");
+  if (b.periods.includes(prev)) $("#cdPeriod").value = prev;
+  const labels = { time: "시간대", weekday: "요일", patient: "환자군", urgency: "긴급도" };
+  const cur = {}; b.filters.forEach(f => { const el = $("#cdf_" + f); cur[f] = el ? el.value : "전체"; });
+  $("#cdFlt").innerHTML = b.filters.length ? `<div class="muted" style="font-size:12px">조건 (전체 = 제한 없음)</div>` + b.filters.map(f =>
+    `<label class="f">${labels[f]}<select id="cdf_${f}" class="ctl">${CD().filters[f].map(o => `<option ${o === cur[f] ? "selected" : ""}>${o}</option>`).join("")}</select></label>`).join("")
+    : `<div class="muted" style="font-size:12px">이 대상에는 시간대·환자군 조건을 쓸 수 없습니다.</div>`;
+  $("#cdFlt").querySelectorAll("select").forEach(e => e.onchange = cdPreview);
+  cdPreview();
+}
+function cdPreview() { const it = cdRead(); $("#cdPrev").textContent = (it.name || "(이름 없음)") + " — " + itemDesc(it); }
+function openCostDlg(i) {
+  const key = Object.keys(BYKEY).find(k => BYKEY[k].type === "costs"), dlg = $("#costDlg");
+  cdIndex = i;
+  const kinds = { fixed: "고정", stock: "보유·증설 대수", usage: "가동·근무 시간", count: "건수" };
+  $("#cdBasis").innerHTML = Object.entries(kinds).map(([k, l]) => `<optgroup label="${l}">${CD().bases.filter(b => b.kind === k).map(b => `<option value="${b.id}">${b.label}</option>`).join("")}</optgroup>`).join("");
+  const it = i >= 0 ? values[key][i] : { name: "", type: "지출", basis: "fixed", period: "월", amount: 0 };
+  $("#cdTitle").textContent = i >= 0 ? "비용·수입 항목 수정" : "비용·수입 항목 추가";
+  $("#cdName").value = it.name; $("#cdAmt").value = it.amount; $("#cdBasis").value = it.basis;
+  document.querySelector(`input[name="cdType"][value="${it.type}"]`).checked = true;
+  $("#cdPeriod").innerHTML = ""; cdRefresh();
+  $("#cdPeriod").value = it.period;
+  CB(it.basis).filters.forEach(f => { const el = $("#cdf_" + f); if (el && it[f]) el.value = it[f]; });
+  cdPreview();
+  $("#cdBasis").onchange = () => { $("#cdPeriod").innerHTML = ""; cdRefresh(); };
+  $("#cdPeriod").onchange = $("#cdAmt").oninput = $("#cdName").oninput = cdPreview;
+  document.querySelectorAll('input[name="cdType"]').forEach(r => r.onchange = cdPreview);
+  $("#cdCancel").onclick = () => dlg.close();
+  $("#cdOk").onclick = () => {
+    const n = cdRead();
+    if (!n.name) return toast("항목 이름을 입력하세요.", true);
+    if (!(n.amount >= 0) || Number.isNaN(n.amount)) return toast("금액은 0 이상의 숫자여야 합니다.", true);
+    const list = values[key].slice();
+    if (cdIndex >= 0) list[cdIndex] = { ...n, id: list[cdIndex].id, enabled: list[cdIndex].enabled };
+    else list.push({ ...n, id: "u" + Date.now().toString(36) });
+    values[key] = list; dlg.close(); renderCosts(); refreshChanged(); save();
+    toast(cdIndex >= 0 ? `“${n.name}” 항목을 수정했습니다.` : `“${n.name}” 항목을 추가했습니다.`);
+  };
+  dlg.showModal();
 }
 function renderMini() {
   document.querySelectorAll("#side [data-mini]").forEach(m => {
@@ -494,7 +664,7 @@ function syncInputs() {
   });
 }
 function afterParamChange() { refreshChanged(); renderLoads(); save(); }
-function replaced() { syncInputs(); renderMini(); renderEditor(); afterParamChange(); } // 값이 통째로 바뀐 경우 (프리셋·불러오기·초기화)
+function replaced() { syncInputs(); renderMini(); renderCosts(); renderEditor(); afterParamChange(); } // 값이 통째로 바뀐 경우 (프리셋·불러오기·초기화)
 function refreshChanged() {
   document.querySelectorAll("#side [data-row]").forEach(r => r.classList.toggle("changed", isChanged(r.dataset.row)));
   document.querySelectorAll("#side [data-cell]").forEach(r => r.classList.toggle("changed", isChanged(r.dataset.cell)));
@@ -671,6 +841,11 @@ function renderLoads() {
 }
 
 /* ---------------------------------------------------------------- 집계 */
+function avgCost(results) {      // 항목별 일평균 금액 (시드 평균)
+  const m = new Map();
+  results.forEach(r => (r.cost_detail || []).forEach(c => { const x = m.get(c.id) || { ...c, per_day: 0 }; x.per_day += c.per_day / results.length; m.set(c.id, x); }));
+  return [...m.values()];
+}
 function aggregate(results) {
   const kpi = {};
   KPIS.forEach(d => {
@@ -687,9 +862,62 @@ function aggregate(results) {
   };
   return { kpi, profile24: avg(r => r.series.profile24), timeline: avg(r => r.series.timeline), first_clock_hour: results[0].series.first_clock_hour, step: results[0].series.timeline_step_h || 1 };
 }
+/* 내 프리셋: 명세 기본값(DEFAULTS)은 그대로 두고, 기본값과 다른 항목만 이름 붙여 따로 저장한다 */
+let userPresets = [];
+function loadUserPresets() {
+  try {
+    userPresets = (JSON.parse(localStorage.getItem(PSTORE) || "[]") || []).filter(x => x && x.name && x.values);
+    if (localStorage.getItem(PSTORE + "_unit") !== "man") {      // 예전 프리셋의 비용 금액(원) -> 만원
+      userPresets.forEach(u => { if (u.values.cost_items) u.values.cost_items = itemsToMan(u.values.cost_items); });
+      localStorage.setItem(PSTORE, JSON.stringify(userPresets)); localStorage.setItem(PSTORE + "_unit", "man");
+    }
+  } catch (e) { userPresets = []; }
+}
+const allPresets = () => [...schema.presets, ...userPresets.map(u => ({ ...u, user: true }))];
+function renderPresetSelect(keep) {
+  const ps = allPresets(), nb = schema.presets.length;
+  const opt = (p, i) => `<option value="${i}" title="${esc(p.desc || "")}">${esc(p.name)}</option>`;
+  $("#preset").innerHTML = `<optgroup label="기본 프리셋 (명세)">${schema.presets.map((p, i) => opt(p, i)).join("")}</optgroup>` +
+    (userPresets.length ? `<optgroup label="내 프리셋">${userPresets.map((p, j) => opt(p, nb + j)).join("")}</optgroup>` : "");
+  if (keep != null && keep < ps.length) $("#preset").value = keep;
+  syncPresetUi();
+}
+function syncPresetUi() {
+  const p = allPresets()[$("#preset").value] || {};
+  $("#preset").title = p.desc || ""; $("#delPreset").disabled = !p.user;
+}
+function savePresetNow() {
+  const diff = changedKeys();
+  if (!diff.length) return toast("기본값과 다른 항목이 없습니다. 조건을 바꾼 뒤 저장하세요.", true);
+  const dlg = $("#presetDlg"), taken = n => allPresets().some(x => x.name === n);
+  let k = userPresets.length + 1; while (taken("내 프리셋 " + k)) k++;
+  $("#pdInfo").textContent = `기본값에서 바뀐 ${diff.length}개 항목(비용·수입 포함)이 저장됩니다. 기본값은 바뀌지 않습니다.`;
+  $("#pdName").value = "내 프리셋 " + k; $("#pdErr").textContent = "";
+  const commit = () => {
+    const name = $("#pdName").value.trim();
+    if (!name) return ($("#pdErr").textContent = "이름을 입력하세요.");
+    if (taken(name)) return ($("#pdErr").textContent = `“${name}” 이름의 프리셋이 이미 있습니다. 다른 이름을 쓰세요.`);
+    const vals = {}; diff.forEach(key => vals[key] = JSON.parse(JSON.stringify(values[key])));
+    userPresets.push({ id: "u" + Date.now().toString(36), name, desc: `내가 저장한 조건 (기본값에서 ${diff.length}개 항목 변경)`, values: vals });
+    try { localStorage.setItem(PSTORE, JSON.stringify(userPresets)); } catch (e) { userPresets.pop(); return ($("#pdErr").textContent = "저장 공간이 부족해 저장하지 못했습니다."); }
+    dlg.close(); renderPresetSelect(allPresets().length - 1);
+    toast(`“${name}” 프리셋을 추가했습니다. 기본값은 그대로입니다.`);
+  };
+  $("#pdOk").onclick = commit; $("#pdCancel").onclick = () => dlg.close();
+  $("#pdName").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commit(); } };
+  dlg.showModal(); $("#pdName").select();
+}
+function deletePresetNow() {
+  const i = +$("#preset").value - schema.presets.length;
+  if (i < 0 || !userPresets[i]) return;
+  if (!confirm(`내 프리셋 “${userPresets[i].name}” 을(를) 삭제할까요?`)) return;
+  userPresets.splice(i, 1);
+  localStorage.setItem(PSTORE, JSON.stringify(userPresets));
+  renderPresetSelect(0);
+}
 function suggestName() {
   const diff = changedKeys();
-  for (const p of schema.presets) {
+  for (const p of allPresets()) {
     const keys = Object.keys(p.values);
     if (keys.length === diff.length && keys.every(k => same(values[k], p.values[k]))) return p.name;
   }
@@ -722,7 +950,7 @@ async function runExperiment() {
     let color = 0; while (used.has(color) && color < MAXRUNS) color++;
     const run = {
       id: "r" + Date.now().toString(36), name, color, values: snapshot, seeds: results.map(r => r.seed), n: results.length,
-      ...agg, checks_ok: results.every(r => r.checks_ok), failed: [...new Set(results.flatMap(r => r.failed_checks || []))],
+      ...agg, costDetail: avgCost(results), checks_ok: results.every(r => r.checks_ok), failed: [...new Set(results.flatMap(r => r.failed_checks || []))],
       createdAt: Date.now(), seconds: Math.round((performance.now() - t0) / 100) / 10,
     };
     runs.push(run); selected.add(run.id); currentId = run.id; if (!baselineId || !runs.some(r => r.id === baselineId)) baselineId = run.id;
@@ -756,7 +984,7 @@ function deltaHtml(info, def) {
 }
 
 /* ---------------------------------------------------------------- 요약 */
-const TILES = ["scan_wait_ct", "scan_wait_mri", "final_wait_mean", "prelim_mean", "within24", "unfinished"];
+const TILES = ["scan_wait_ct", "scan_wait_mri", "final_wait_mean", "prelim_mean", "within24", "unfinished", "net_day"];
 function renderSummary() {
   const card = $("#sumCard");
   const run = runs.find(r => r.id === currentId);
@@ -776,6 +1004,16 @@ function renderSummary() {
     if (!s) return "";
     return `<div class="tile"><div class="lab">${d.label}${QM(d.help)}</div><div class="val num">${nf(s.mean, d.decimals)}<small>${d.unit}</small></div><div class="sd">± ${nf(s.sd, d.decimals)}</div><div>${deltaHtml(deltaInfo(run, base, k), d)}</div></div>`;
   }).join("") + `</div>`;
+  if (run.costDetail && run.costDetail.length) {
+    const rows = run.costDetail, inc = rows.filter(c => c.type === "수입"), exp = rows.filter(c => c.type === "지출");
+    const sum = a => a.reduce((x, c) => x + c.per_day, 0);
+    const tr = c => `<tr><td>${esc(c.name)}</td><td class="num" style="text-align:right">${man(c.per_day, 1)}</td></tr>`;
+    h += `<details class="costsum" style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">비용·수입 내역 (일평균, 만원) ${QM("왼쪽 '비용·수입'에서 체크한 항목만 나옵니다. 시드 평균이며 단가는 가정값입니다.")}</summary>
+      <table style="width:100%;margin-top:8px;border-collapse:collapse"><tbody>
+      <tr><td colspan="2" class="muted">수입 ${man(sum(inc), 1)}만원</td></tr>${inc.map(tr).join("") || `<tr><td class="muted" colspan="2">체크된 수입 항목 없음</td></tr>`}
+      <tr><td colspan="2" class="muted" style="padding-top:8px">지출 ${man(sum(exp), 1)}만원</td></tr>${exp.map(tr).join("") || `<tr><td class="muted" colspan="2">체크된 지출 항목 없음</td></tr>`}
+      <tr><td><b>순이익</b></td><td class="num" style="text-align:right"><b>${man(sum(inc) - sum(exp), 1)}</b></td></tr></tbody></table></details>`;
+  }
   card.innerHTML = h;
 }
 
@@ -838,7 +1076,7 @@ function renderQueue() {
 function renderKpiPick() {
   const groups = [...new Set(KPIS.map(d => d.group))];
   $("#kpiPanel").innerHTML = `<div class="pre"><span class="muted" style="font-size:12px">빠른 선택</span>
-    <button class="btn sm" data-pre="core">핵심</button><button class="btn sm" data-pre="그룹별">그룹별 소요</button><button class="btn sm" data-pre="자원">자원 점유율</button><button class="btn sm" data-pre="대기열">대기열</button><button class="btn sm" data-pre="clear">모두 해제</button></div>` +
+    <button class="btn sm" data-pre="core">핵심</button><button class="btn sm" data-pre="비용">비용·수입</button><button class="btn sm" data-pre="환자군">환자군 완료율</button><button class="btn sm" data-pre="그룹별">그룹별 소요</button><button class="btn sm" data-pre="자원">자원 점유율</button><button class="btn sm" data-pre="대기열">대기열</button><button class="btn sm" data-pre="clear">모두 해제</button></div>` +
     groups.map(g => `<div class="kg"><div class="kgh">${g}</div>${KPIS.filter(d => d.group === g).map(d => `<span class="kc"><label style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" data-kpi="${d.key}"> ${d.label} <span class="muted">(${d.unit})</span></label>${QM(d.help)}</span>`).join("")}</div>`).join("");
   const setBars = list => { barKpis = KPIS.map(d => d.key).filter(k => list.includes(k)); save(); renderBars(); };
   $("#kpiPanel").querySelectorAll("[data-kpi]").forEach(c => c.addEventListener("change", () => {
@@ -983,13 +1221,14 @@ async function init() {
   PARAMS = schema.params; KPIS = schema.kpis;
   PARAMS.forEach(p => { BYKEY[p.key] = p; DEFAULTS[p.key] = p.default; }); KPIS.forEach(k => KBY[k.key] = k);
   values = { ...DEFAULTS }; load();
-  runs = runs.filter(r => r && r.kpi && r.values); selected = new Set([...selected].filter(id => runs.some(r => r.id === id)));
+  runs = runs.filter(r => r && r.kpi && r.values);
+  runs.forEach(r => { r.values = { ...DEFAULTS, ...r.values }; });   // 새로 생긴 조건 항목이 없는 예전 실험도 열리게 selected = new Set([...selected].filter(id => runs.some(r => r.id === id)));
   if (!runs.some(r => r.id === baselineId)) baselineId = runs[0] ? runs[0].id : null;
   if (!runs.some(r => r.id === currentId)) currentId = runs.length ? runs[runs.length - 1].id : null;
-  $("#preset").innerHTML = schema.presets.map((p, i) => `<option value="${i}" title="${esc(p.desc)}">${esc(p.name)}</option>`).join("");
-  $("#preset").title = schema.presets[0].desc;
-  $("#preset").onchange = () => $("#preset").title = schema.presets[$("#preset").value].desc;
-  $("#applyPreset").onclick = () => { const p = schema.presets[$("#preset").value]; values = { ...DEFAULTS, ...p.values }; replaced(); toast(`“${p.name}” 조건을 적용했습니다. ${p.desc}`); };
+  loadUserPresets(); renderPresetSelect();
+  $("#preset").onchange = syncPresetUi;
+  $("#applyPreset").onclick = () => { const p = allPresets()[$("#preset").value]; values = { ...DEFAULTS, ...JSON.parse(JSON.stringify(p.values)) }; replaced(); toast(`“${p.name}” 조건을 적용했습니다. ${p.desc || ""}`); };
+  $("#savePreset").onclick = savePresetNow; $("#delPreset").onclick = deletePresetNow;
   $("#run").onclick = runExperiment; $("#stop").onclick = () => { abortFlag = true; };
   $("#edReset").onclick = () => { HOURLY().filter(p => p.group === edTab).forEach(p => values[p.key] = DEFAULTS[p.key]); renderMini(); renderEditor(); afterParamChange(); };
   $("#exCsv").onclick = exportCsv; $("#exJson").onclick = exportJson;

@@ -19,10 +19,27 @@ KPI_DEFS = [
     ("prelim_p95", "응급 초기보고 P95", "분", "핵심", "lower", 1),
     ("post_scan_mean", "촬영 후 최종보고 평균", "분", "핵심", "lower", 1),
     ("post_scan_p95", "촬영 후 최종보고 P95", "분", "핵심", "lower", 1),
-    ("within24", "경과 24시간 이내 완료율", "%", "핵심", "higher", 1),
+    ("within24", "촬영 후 24시간 이내 완료율", "%", "핵심", "higher", 1),
     ("nextday", "촬영일 익일까지 완료율", "%", "핵심", "higher", 1),
     ("unfinished", "미완료 (촬영 완료 기준)", "건", "핵심", "lower", 1),
+    ("net_day", "일평균 순이익 (수입−지출)", "만원", "비용", "higher", 1),
+    ("income_day", "일평균 수입", "만원", "비용", None, 1),
+    ("expense_day", "일평균 지출", "만원", "비용", "lower", 1),
+    ("reader_hours_day", "판독 의료진 예정 근무 (인시/일)", "인시", "비용", None, 1),
+    ("ot_hours_day", "초과근무 (시간/일)", "시간", "비용", "lower", 2),
+    ("total_p50", "전체 소요 P50", "분", "분포", "lower", 1),
+    ("total_p90", "전체 소요 P90", "분", "분포", "lower", 1),
+    ("first_result_mean", "응급 최초 결과 평균 (요청→가판독/최종)", "분", "분포", "lower", 1),
+    ("first_result_p95", "응급 최초 결과 P95", "분", "분포", "lower", 1),
+    ("within24_ed", "촬영 후 24시간 이내 완료율 · ED", "%", "환자군", "higher", 1),
+    ("within24_ip", "촬영 후 24시간 이내 완료율 · IP", "%", "환자군", "higher", 1),
+    ("nextday_ed", "촬영일 익일까지 완료율 · ED", "%", "환자군", "higher", 1),
+    ("nextday_ip", "촬영일 익일까지 완료율 · IP", "%", "환자군", "higher", 1),
+    ("unfinished_ed", "미완료 · ED", "건", "환자군", "lower", 1),
+    ("unfinished_ip", "미완료 · IP", "건", "환자군", "lower", 1),
     ("requests", "집계 구간 접수 건수", "건", "참고", None, 0),
+    ("scan_done_ct", "CT 촬영 완료 건수", "건", "참고", None, 0),
+    ("scan_done_mri", "MRI 촬영 완료 건수", "건", "참고", None, 0),
     ("total_mean_ct_urgent", "전체 소요 평균 · CT 응급", "분", "그룹별", "lower", 1),
     ("total_mean_ct_routine", "전체 소요 평균 · CT 일반", "분", "그룹별", "lower", 1),
     ("total_mean_mri_urgent", "전체 소요 평균 · MRI 응급", "분", "그룹별", "lower", 1),
@@ -63,9 +80,26 @@ KPI_HELP = {
     "prelim_p95": "응급 초기보고 시간의 95% 지점.",
     "post_scan_mean": "촬영이 끝난 뒤 최종보고서가 나올 때까지 (판독 대기 + 판독 + 가판독 영향 포함)의 평균.",
     "post_scan_p95": "촬영 후 최종보고까지 시간의 95% 지점.",
-    "within24": "요청 접수 후 24시간 안에 최종보고가 끝난 비율. 높을수록 좋다.",
+    "within24": "촬영이 끝난 뒤 1,440분(24시간) 안에 최종판독이 끝난 비율 (집계 구간에 촬영 완료한 건 기준). 높을수록 좋다.",
     "nextday": "촬영한 날의 다음 날 자정까지 최종보고가 끝난 비율. 높을수록 좋다.",
     "unfinished": "집계 구간에 촬영을 마쳤지만 후속 관찰이 끝날 때까지도 최종보고가 안 나온 건수. 0이 아니면 판독이 계속 밀리고 있다는 신호.",
+    "net_day": "하루 평균 수입에서 지출을 뺀 값(만원). 왼쪽 '비용·수입'에서 체크한 항목만 계산된다. 단가는 가정값이라 정책 간 비교용이다.",
+    "income_day": "체크된 수입 항목의 하루 평균 합계(만원).",
+    "expense_day": "체크된 지출 항목의 하루 평균 합계(만원).",
+    "reader_hours_day": "판독 자리(최종·가판독)의 하루 예정 근무시간 합. 기본 근무표는 최종판독 48인시 + 가판독 24인시.",
+    "ot_hours_day": "예정 근무가 끝난 뒤 읽던 건을 마무리한 시간의 하루 평균.",
+    "total_p50": "전체 소요시간의 중앙값. 절반의 요청이 이보다 빨리 끝난다.",
+    "total_p90": "전체 소요시간의 90% 지점.",
+    "first_result_mean": "응급 요청이 접수된 뒤 가판독 또는 최종판독 중 먼저 끝난 결과가 나오기까지의 평균(명세 7.5).",
+    "first_result_p95": "응급 최초 결과 시간의 95% 지점.",
+    "within24_ed": "ED 환자의 촬영 후 24시간 이내 최종판독 완료율.",
+    "within24_ip": "IP 환자의 촬영 후 24시간 이내 최종판독 완료율.",
+    "nextday_ed": "ED 환자의 촬영일 익일 23:59:59 까지 판독 완료율.",
+    "nextday_ip": "IP 환자의 촬영일 익일 23:59:59 까지 판독 완료율.",
+    "unfinished_ed": "ED 환자 중 촬영을 마쳤지만 관찰 종료까지 최종판독이 안 끝난 건수.",
+    "unfinished_ip": "IP 환자 중 촬영을 마쳤지만 관찰 종료까지 최종판독이 안 끝난 건수.",
+    "scan_done_ct": "집계 구간에 촬영을 마친 CT 건수.",
+    "scan_done_mri": "집계 구간에 촬영을 마친 MRI 건수.",
     "requests": "집계 구간에 접수된 검사 요청 수. 시드가 같으면 정책이 달라도 같은 값이어야 한다.",
     "total_mean_ct_urgent": "CT 응급 요청만의 전체 소요 평균.",
     "total_mean_ct_routine": "CT 일반 요청만의 전체 소요 평균.",
@@ -106,7 +140,7 @@ def _clean(x):
 
 
 def extract_kpis(a):
-    t, r, q = a["timing"], a["resource"], a["queue"]
+    t, r, q, cs = a["timing"], a["resource"], a["queue"], a["cost"]
     k = {
         "total_mean": t["ALL"]["전체 소요(요청→최종보고)"]["mean"],
         "total_p95": t["ALL"]["전체 소요(요청→최종보고)"]["p95"],
@@ -121,6 +155,16 @@ def extract_kpis(a):
         "within24": 100 * t["ALL"]["경과 24h 이내 완료율"],
         "nextday": 100 * t["ALL"]["촬영일 익일까지 완료율"],
         "unfinished": t["ALL"]["미완료(촬영 완료 기준)"],
+        "net_day": cs["net"], "income_day": cs["income"], "expense_day": cs["expense"],
+        "reader_hours_day": cs["reader_hours_day"], "ot_hours_day": cs["ot_hours_day"],
+        "total_p50": t["ALL"]["전체 소요(요청→최종보고)"]["p50"],
+        "total_p90": t["ALL"]["전체 소요(요청→최종보고)"]["p90"],
+        "first_result_mean": t["ALL"]["응급 최초 결과(요청→첫 결과)"]["mean"],
+        "first_result_p95": t["ALL"]["응급 최초 결과(요청→첫 결과)"]["p95"],
+        "within24_ed": 100 * t["PG-ED"]["경과 24h 이내 완료율"], "within24_ip": 100 * t["PG-IP"]["경과 24h 이내 완료율"],
+        "nextday_ed": 100 * t["PG-ED"]["촬영일 익일까지 완료율"], "nextday_ip": 100 * t["PG-IP"]["촬영일 익일까지 완료율"],
+        "unfinished_ed": t["PG-ED"]["미완료(촬영 완료 기준)"], "unfinished_ip": t["PG-IP"]["미완료(촬영 완료 기준)"],
+        "scan_done_ct": t[CT]["촬영 완료"], "scan_done_mri": t[MRI]["촬영 완료"],
         "requests": t["ALL"]["요청 접수"],
         "total_mean_ct_urgent": t["CT-URGENT"]["전체 소요(요청→최종보고)"]["mean"],
         "total_mean_ct_routine": t["CT-ROUTINE"]["전체 소요(요청→최종보고)"]["mean"],
@@ -192,7 +236,7 @@ def run_one(values, seed, verify=True):
     events = run(cfg)
     a = analyze(events, cfg)
     out = {"seed": cfg.evaluation.seed, "kpi": extract_kpis(a), "series": queue_series(events, cfg),
-           "n_events": len(events)}
+           "n_events": len(events), "cost_detail": a["cost"]["items"]}
     if verify:
         checks = check_model(events, cfg)
         out["checks_ok"] = all(ok for _, ok, _ in checks)

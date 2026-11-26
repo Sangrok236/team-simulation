@@ -21,7 +21,7 @@ def by_hours(day, night, day_start=8, day_end=20):
 
 @dataclass
 class ClockConfig:
-    clock_at_t0: int = 480      # t=0 이 하루 중 몇 분인지 (08:00 = 480)
+    clock_at_t0: int = 0        # t=0 이 하루 중 몇 분인지 (명세 8.7: 2024-01-01 00:00 = 0)
 
     def hour_at(self, t):
         return int(((t + self.clock_at_t0) % 1440) // 60)
@@ -43,6 +43,10 @@ class DemandConfig:
         CT: by_hours(7.0, 2.0),
         MRI: by_hours(1.2, 0.3),
     })
+    # 환자군 상대 가중치 (가정값). ED 는 24시간, IP 는 야간에 절반, OP 는 평일 08~17시에만 발생한다.
+    patient_mix: dict = field(default_factory=lambda: {"ED": 30.0, "IP": 25.0, "OP": 45.0})
+    # 가판독 대상: ALL=응급 전체, ED=ED 응급만, ED_IP=ED·IP 응급, NONE=가판독 없음
+    prelim_target: str = "ALL"
     urgent_ratio: dict = field(default_factory=lambda: {CT: 0.20, MRI: 0.10})
     # 일별 변동: 매일 하루 단위로 도착률에 -x ~ +x (건/시간) 를 균등분포로 더한다 (0 = 없음). 시드가 같으면 같은 날엔 같은 값.
     daily_var: dict = field(default_factory=lambda: {CT: 0.0, MRI: 0.0})
@@ -54,16 +58,16 @@ class DemandConfig:
 @dataclass
 class ScanConfig:
     # 장비 수와 '신경영상에 할당된 동시 촬영 슬롯'을 분리한다. 실제 동시 촬영 = min(장비 수, 슬롯).
-    ct_units: int = 2
+    ct_units: int = 4
     ct_slots: dict = field(default_factory=lambda: by_hours(2, 1))
-    mri_units: int = 1
-    mri_slots: dict = field(default_factory=lambda: by_hours(1, 1))
+    mri_units: int = 3
+    mri_slots: dict = field(default_factory=lambda: by_hours(2, 1))
     safety_units: int = 1
     safety_slots: dict = field(default_factory=lambda: by_hours(1, 1))
     # 삼각분포 (최소, 최빈, 최대)
     ct_scan: tuple = (10, 15, 20)
     mri_safety: tuple = (3, 5, 7)
-    mri_scan: tuple = (30, 40, 50)
+    mri_scan: tuple = (30, 35, 40)
 
 
 def _default_assignment():
@@ -104,8 +108,16 @@ class ReadingConfig:
 class EvaluationConfig:
     seed: int = 20261122
     warmup_end: int = 7 * 1440          # 준비 구간 7일: 집계 제외
-    measure_end: int = 14 * 1440        # 집계 구간 다음 7일
-    total_end: int = 16 * 1440          # 후속 관찰 2일 (요청은 계속 생성)
+    measure_end: int = 35 * 1440        # 집계 구간 28일
+    total_end: int = 38 * 1440          # 후속 관찰 72시간 (요청은 계속 생성)
+
+
+@dataclass
+class CostConfig:
+    """비용·수입 항목 목록(원). 항목 하나의 형식은 params.py 의 COST_BASES 설명을 본다. 체크된 항목만 들어온다."""
+    base_ct: int = 4                  # 기존 보유 장비 (이보다 많으면 '신규 증설')
+    base_mri: int = 3
+    items: list = field(default_factory=list)
 
 
 @dataclass
@@ -116,6 +128,7 @@ class Config:
     staffing: StaffingConfig = field(default_factory=StaffingConfig)
     reading: ReadingConfig = field(default_factory=ReadingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    cost: CostConfig = field(default_factory=CostConfig)
 
     def copy(self):
         return copy.deepcopy(self)

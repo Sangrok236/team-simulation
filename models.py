@@ -300,7 +300,7 @@ class ReadingScheduler(AtomicDEVS):
         # 3) 신규 업무
         for e in scans:
             c = e["case"]
-            q = s.prelim_q if c["urgent"] else s.final_q
+            q = s.prelim_q if c["has_prelim"] else s.final_q
             bisect.insort(q, (priority_key(c, e["timestamp"]), c))
         # 4) 배정
         on_duty = self.cfg.staffing.prelim_assignment.get(s.hour, ())

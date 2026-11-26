@@ -75,6 +75,26 @@ def _arrival_times(cfg, modality, rng):
     return times
 
 
+def _pick_group(cfg, rng, t):
+    """환자군(ED/IP/OP). 요청 시각의 시간대·요일에 따라 가중치가 달라진다."""
+    h = cfg.clock.hour_at(t)
+    wd = (cfg.demand.start_weekday + cfg.clock.day_index(t)) % 7
+    mix = cfg.demand.patient_mix
+    w = {"ED": mix["ED"], "IP": mix["IP"] * (1.0 if 8 <= h < 20 else 0.5),
+         "OP": mix["OP"] if (wd < 5 and 8 <= h < 17) else 0.0}
+    x = rng.random() * sum(w.values())
+    for g in ("ED", "IP", "OP"):
+        x -= w[g]
+        if x < 0:
+            return g
+    return "ED"
+
+
+def _has_prelim(cfg, urgent, group):
+    tg = cfg.demand.prelim_target
+    return urgent and (tg == "ALL" or (tg == "ED" and group == "ED") or (tg == "ED_IP" and group in ("ED", "IP")))
+
+
 def build_cases(cfg):
     """모든 검사 요청을 도착 시각순으로 만들어 돌려준다."""
     seed = cfg.evaluation.seed
@@ -89,14 +109,18 @@ def build_cases(cfg):
             scan = tri(rng, cfg.scan.ct_scan if modality == CT else cfg.scan.mri_scan)
             prelim = tri(rng, cfg.reading.prelim[modality])
             final = tri(rng, cfg.reading.final[modality])
+            group = _pick_group(cfg, rng, t)          # 추가 추출은 맨 뒤 -> 앞선 표본은 그대로
+            has_prelim = _has_prelim(cfg, urgent, group)
             raw.append({
                 "modality": modality,
                 "urgent": urgent,
                 "urgency": "URGENT" if urgent else "ROUTINE",
+                "patient_group": group,
+                "has_prelim": has_prelim,
                 "request_time": t,
                 "safety_time": safety if modality == MRI else None,
                 "scan_time": scan,
-                "prelim_time": prelim if urgent else None,
+                "prelim_time": prelim if has_prelim else None,
                 "final_time": final,
             })
     raw.sort(key=lambda c: c["request_time"])
